@@ -189,15 +189,8 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 							var speed = Sqrt(Pow(newVehicle.X - oldVehicle.X, 2) + Pow(newVehicle.Y - oldVehicle.Y, 2));
 							if (speed > 0.1)
 							{
-								squad.MovingVehicles[id] = speed;
-								var angle = Atan((newVehicle.Y - oldVehicle.Y) / (newVehicle.X - oldVehicle.X));
-								squad.Angles[id] = angle > 0 
-									? (newVehicle.Y - oldVehicle.Y) > 0 
-										? angle 
-										: angle - PI 
-									: (newVehicle.Y - oldVehicle.Y) < 0 
-										? angle 
-										: PI + angle;
+								squad.MovingVehicles[id] = new Coordinate { X = newVehicle.X - oldVehicle.X, Y = newVehicle.Y - oldVehicle.Y };
+								squad.Angles[id] = Geometry.GetAngle(oldVehicle.X, newVehicle.X, oldVehicle.Y, newVehicle.Y);
 							}
 							// recording fact of attack
 							if (newVehicle.Durability < oldVehicle.Durability)
@@ -241,6 +234,7 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 			{
 				squad.Value.MovingVehicles.Clear();
 				squad.Value.Angles.Clear();
+				squad.Value.Route = null;
 			}
 		}
 

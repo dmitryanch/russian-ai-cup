@@ -1,6 +1,6 @@
 ﻿using Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk.Model;
 using System;
-using System.Collections.Generic;
+using static Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk.Geometry;
 
 namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 {
@@ -9,6 +9,11 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 	{
 		public double X;
 		public double Y;
+
+		public static Coordinate operator + (Coordinate c1, Coordinate c2)
+		{
+			return new Coordinate { X = c1.X + c2.X, Y = c1.Y + c2.Y };
+		}
 	}
 
 	public class CoordinateBounds
@@ -84,15 +89,52 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 
 	public class Route
 	{
-		public double angle;
-		public double front;
-		public double rear;
-		public double left;
-		public double right;
+		public Coordinate speedVector;
+		public Coordinate center;
+		public Coordinate front;
+		public Coordinate frontStart;
+		public Coordinate rear;
+		public Coordinate rearStart;
+		public Coordinate left;
+		public Coordinate leftStart;
+		public Coordinate right;
+		public Coordinate rightStart;
 
-		public Route(Dictionary<long, Vehicle> vehicles, double sX, double sY, double dX, double dY)
+		public Route(Coordinate center, Coordinate speedVector, Coordinate front, Coordinate rear, Coordinate left, Coordinate right)
 		{
+			this.center = center;
+			this.speedVector = speedVector;
+			this.frontStart = front;
+			this.rearStart = rear;
+			this.leftStart = left;
+			this.rightStart = right;
+			this.front = front + speedVector;
+			this.rear = rear + speedVector;
+			this.left = left + speedVector;
+			this.right = right + speedVector;
+		}
 
+		public bool IsCrossingWith(Route other)
+		{
+			return IsCrossing(leftStart, left, other.leftStart, other.left)
+				|| IsCrossing(leftStart, left, other.rightStart, other.right)
+				|| IsCrossing(leftStart, left, other.frontStart, other.front)
+				|| IsCrossing(leftStart, left, other.leftStart, other.rear)
+
+				|| IsCrossing(rightStart, right, other.leftStart, other.left)
+				|| IsCrossing(rightStart, right, other.rightStart, other.right)
+				|| IsCrossing(rightStart, right, other.frontStart, other.front)
+				|| IsCrossing(rightStart, right, other.leftStart, other.rear)
+
+				|| IsCrossing(frontStart, front, other.leftStart, other.left)
+				|| IsCrossing(frontStart, front, other.rightStart, other.right)
+				|| IsCrossing(frontStart, front, other.frontStart, other.front)
+				|| IsCrossing(frontStart, front, other.leftStart, other.rear)
+
+				|| IsCrossing(rearStart, rear, other.leftStart, other.left)
+				|| IsCrossing(rearStart, rear, other.rightStart, other.right)
+				|| IsCrossing(rearStart, rear, other.frontStart, other.front)
+				|| IsCrossing(rearStart, rear, other.leftStart, other.rear);
 		}
 	}
 }
