@@ -10,6 +10,12 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 		public double X;
 		public double Y;
 
+		public Coordinate(double x, double y)
+		{
+			X = x;
+			Y = y;
+		}
+		public Coordinate() : this(0, 0) { }
 		public static Coordinate operator + (Coordinate c1, Coordinate c2)
 		{
 			return new Coordinate { X = c1.X + c2.X, Y = c1.Y + c2.Y };
@@ -119,22 +125,22 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 			return IsCrossing(leftStart, left, other.leftStart, other.left)
 				|| IsCrossing(leftStart, left, other.rightStart, other.right)
 				|| IsCrossing(leftStart, left, other.frontStart, other.front)
-				|| IsCrossing(leftStart, left, other.leftStart, other.rear)
+				|| IsCrossing(leftStart, left, other.rearStart, other.rear)
 
 				|| IsCrossing(rightStart, right, other.leftStart, other.left)
 				|| IsCrossing(rightStart, right, other.rightStart, other.right)
 				|| IsCrossing(rightStart, right, other.frontStart, other.front)
-				|| IsCrossing(rightStart, right, other.leftStart, other.rear)
+				|| IsCrossing(rightStart, right, other.rearStart, other.rear)
 
 				|| IsCrossing(frontStart, front, other.leftStart, other.left)
 				|| IsCrossing(frontStart, front, other.rightStart, other.right)
 				|| IsCrossing(frontStart, front, other.frontStart, other.front)
-				|| IsCrossing(frontStart, front, other.leftStart, other.rear)
+				|| IsCrossing(frontStart, front, other.rearStart, other.rear)
 
 				|| IsCrossing(rearStart, rear, other.leftStart, other.left)
 				|| IsCrossing(rearStart, rear, other.rightStart, other.right)
 				|| IsCrossing(rearStart, rear, other.frontStart, other.front)
-				|| IsCrossing(rearStart, rear, other.leftStart, other.rear);
+				|| IsCrossing(rearStart, rear, other.rearStart, other.rear);
 		}
 	}
 }

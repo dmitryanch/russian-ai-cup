@@ -11,12 +11,14 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 		public long playerId;
 		public NuclearStrike strike;
 		public int score;
+		private int lastScore;
 		public GroupTask lastTask;
 
 		private int tick;
 		private StrategyType strategy;
 		private bool isCrushed;
 		private bool canTacticalNuclearAttack;
+		private const int lossScoreFactor = 2;
 		
 		#region Custom Collections
 		public readonly Dictionary<long, Vehicle> All = new Dictionary<long, Vehicle>(500);
@@ -229,7 +231,6 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 
 		private void BeforeUpdate()
 		{
-			
 			foreach (var squad in Squads)
 			{
 				squad.Value.MovingVehicles.Clear();
@@ -249,9 +250,9 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 
 		public void Analyze(ArmyInfo opponent)
 		{
-			strategy = score > opponent.score * 1.5 || opponent.isCrushed
+			strategy = (lastScore - score) > (opponent.lastScore - opponent.score) * lossScoreFactor
 				? StrategyType.Brave
-				: score * 1.5 < opponent.score
+				: (lastScore - score) * lossScoreFactor < (opponent.lastScore - opponent.score)
 					? StrategyType.Back
 					: StrategyType.Normal;
 			foreach (var squad in Squads)
@@ -260,6 +261,7 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 				squad.Value.IsUnderNuclearAttack = opponent.strike != null && squad.Value.Vehicles
 				.Any(v => v.Value.GetDistanceTo(opponent.strike.target.X, opponent.strike.target.Y) < 50);
 			}
+			lastScore = score;
 		}
 
 		public GroupTask GetTask(ArmyInfo opponent)

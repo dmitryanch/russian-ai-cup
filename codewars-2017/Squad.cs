@@ -88,7 +88,7 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 		{
 			var task = GetTaskByStrategy(opponent, strategy);
 
-			if (Target != null && Target.variance > 1.5 * initVariance)
+			if (task != null && Target != null && Target.variance > 1.5 * initVariance)
 			{
 				//var scaletask = CreateScaleTask(0.1, (opp, strat) => GetTaskByStrategy(opp, strat), task.priority, task.order, 10);
 				//var rotatetask = CreateRotateTask(-PI / 4, (opp, strat) => scaletask, task.priority, task.order, 10);
@@ -164,13 +164,13 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 			{
 				return CreateMoveTask(target.center.X - Target.center.X, target.center.Y - Target.center.Y);
 			}
-			var nearestVehicle = opponent.All.Select(v => v.Value).Where(FilterVehicle)
+			var nearestVehicle = opponent.All.Values.Where(FilterVehicle)
 				.OrderBy(v => (int)v.GetDistanceTo(Target.center.X, Target.center.Y) / rangePortionOrdering).ThenBy(OrderByVehicleType).FirstOrDefault();
 			if (nearestVehicle != null)
 			{
 				return CreateMoveTask(nearestVehicle.X - Target.center.X, nearestVehicle.Y - Target.center.Y);
 			}
-			var tacticalTarget = opponent.All.Select(v => v.Value).Where(FilterTactical)
+			var tacticalTarget = opponent.All.Values.Where(FilterTactical)
 				.OrderBy(v => (int)v.GetDistanceTo(Target.center.X, Target.center.Y) / rangePortionOrdering).ThenBy(OrderByVehicleType).FirstOrDefault();
 			if (tacticalTarget != null)
 			{
@@ -193,14 +193,14 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 				apoint = FindAttackingPoint(target.center.X, target.center.Y, Target.center.X, Target.center.Y, 20);
 				return CreateMoveTask(apoint.X, apoint.Y);
 			}
-			var nearest = opponent.All.Select(v => v.Value).Where(FilterVehicle)
+			var nearest = opponent.All.Values.Where(FilterVehicle)
 				.OrderBy(v => (int)v.GetDistanceTo(Target.center.X, Target.center.Y) / rangePortionOrdering).ThenBy(OrderByVehicleType).FirstOrDefault();
 			if (nearest != null)
 			{
 				apoint = FindAttackingPoint(nearest.X, nearest.Y, Target.center.X, Target.center.Y, 20);
 				return CreateMoveTask(apoint.X, apoint.Y);
 			}
-			var tacticalTarget = opponent.All.Select(v => v.Value).Where(FilterTactical)
+			var tacticalTarget = opponent.All.Values.Where(FilterTactical)
 				.OrderBy(v => (int)v.GetDistanceTo(Target.center.X, Target.center.Y) / rangePortionOrdering).ThenBy(OrderByVehicleType).FirstOrDefault();
 			if (tacticalTarget != null)
 			{
@@ -224,7 +224,7 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 					type == VehicleType.Fighter ? 120 : type == VehicleType.Helicopter ? 100 : type == VehicleType.Arrv ? 60 : 80);
 				return CreateMoveTask(apoint.X, apoint.Y);
 			}
-			var nearest = opponent.All.Select(v => v.Value).Where(FilterVehicle)
+			var nearest = opponent.All.Values.Where(FilterVehicle)
 				.OrderBy(v => (int)v.GetDistanceTo(Target.center.X, Target.center.Y) / rangePortionOrdering).ThenBy(OrderByVehicleType).FirstOrDefault();
 			if (nearest != null)
 			{
@@ -232,7 +232,7 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 					type == VehicleType.Fighter ? 120 : type == VehicleType.Helicopter ? 100 : type == VehicleType.Arrv ? 60 : 80);
 				return CreateMoveTask(apoint.X, apoint.Y);
 			}
-			var tacticalTarget = opponent.All.Select(v => v.Value).Where(FilterTactical)
+			var tacticalTarget = opponent.All.Values.Where(FilterTactical)
 				.OrderBy(v => (int)v.GetDistanceTo(Target.center.X, Target.center.Y) / rangePortionOrdering).ThenBy(OrderByVehicleType).FirstOrDefault();
 			if (tacticalTarget != null)
 			{
@@ -253,6 +253,7 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 		{
 			double maxSpeed = GetMaxSpeed();
 			var targetpoint = CorrectPoint(x, y, ref maxSpeed);
+			if (targetpoint == null) return null;
 			var targetMovingDelta = lastTargetCoordinate != null
 				? Sqrt(Pow(x - lastTargetCoordinate.X, 2) + Pow(y - lastTargetCoordinate.Y, 2)) : int.MaxValue;
 			lastRangeToTarget = rangeToTarget;
@@ -275,17 +276,38 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 
 		private double GetMaxSpeed()
 		{
-			return 0;
+			return Target.speed;
+		}
+
+		protected virtual bool FilterNeighbors(ISquad squad)
+		{
+			return squad.Id != Id && Type != VehicleType.Helicopter && Type != VehicleType.Fighter;
 		}
 
 		private Coordinate CorrectPoint(double x, double y, ref double maxSpeed)
 		{
 			Route newRoute;
-			return new Coordinate { X = x, Y = y };
-			do
+			var currentRoutes = Squads.Values.Where(FilterNeighbors).Select(s => s.Route).Where(r => r != null);
+			var speedVectors = Enumerable.Range(-18, 36).Select(n => 2 * PI / 36 * n).OrderBy(n => Abs(n))
+				.Select(a => new Coordinate(x * Cos(a) - y * Sin(a), x * Sin(a) + y * Cos(a)));
+			var speedCoefficients = new[] { 1, 0.9, 0.8, 0.7, 0.6 };
+			foreach(var speedVector in speedVectors)
 			{
-				newRoute = new Route(Vehicles, Target.center.X, Target.center.Y, x, y);
-			} while (Squads.Where(s => s.Key != Id).Select(s => s.Value.Route).Any(r => newRoute.IsCrossingWith(r)));
+				var normalizedX = speedVector.X / (Sqrt(Pow(speedVector.X, 2) + Pow(speedVector.Y, 2))) * maxSpeed;
+				var normalizedY = speedVector.Y / (Sqrt(Pow(speedVector.X, 2) + Pow(speedVector.Y, 2))) * maxSpeed;
+				foreach (var coef in speedCoefficients)
+				{
+					newRoute = CreateRoute(normalizedX * coef, normalizedY * coef);
+					if (currentRoutes.Any(r => newRoute.IsCrossingWith(r)))
+					{
+						continue;
+					}
+					maxSpeed *= coef;
+					return speedVector.X == x && speedVector.Y == y ? new Coordinate(x, y)
+						: new Coordinate(normalizedX * anticipationTicksInterval, normalizedY * anticipationTicksInterval);
+				}
+			}
+			return null;
 		}
 
 		private GroupTask CreateScaleTask(double factor, Func<ArmyInfo, StrategyType, GroupTask> next, int priority, int order, int duration = 30)
@@ -395,58 +417,21 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 			}
 		}
 
-		public Route Route {
+		public Route Route
+		{
 			get
 			{
 				if (route != null)
 				{
 					return route;
 				}
-				var front = new Coordinate();
-				var rear = new Coordinate();
-				var left = new Coordinate();
-				var right = new Coordinate();
-				var maxfrontRange = 0d;
-				var maxrearRange = 0d;
-				var maxleftRange = 0d;
-				var maxrightRange = 0d;
-				var sumAnticipationX = MovingVehicles.Average(v => v.Value.X) / Vehicles.Count * anticipationTicksInterval;
-				var sumAnticipationY = MovingVehicles.Average(v => v.Value.Y) / Vehicles.Count * anticipationTicksInterval;
-				foreach (var item in Vehicles)
+				var speedVector = new Coordinate();
+				if (MovingVehicles.Any())
 				{
-					var vehicle = item.Value;
-					var angleFromMovingDirection = Atan2(vehicle.Y - Target.center.Y, vehicle.X - Target.center.X) - Atan2(sumAnticipationY, sumAnticipationX);
-					if (angleFromMovingDirection < -PI) angleFromMovingDirection += PI * 2;
-					if (angleFromMovingDirection > PI) angleFromMovingDirection -= 2 * PI;
-					var rangeFromCenter = Sqrt(Pow(Target.center.X - vehicle.X, 2) + Pow(Target.center.Y - vehicle.Y, 2));
-					var transversalRange = Sin(angleFromMovingDirection) * rangeFromCenter;
-					var longitudinalRange = Cos(angleFromMovingDirection) * rangeFromCenter;
-					if (transversalRange < maxleftRange)
-					{
-						maxleftRange = transversalRange;
-						left.X = vehicle.X;
-						left.Y = vehicle.Y;
-					}
-					if (transversalRange > maxrightRange)
-					{
-						maxrightRange = transversalRange;
-						right.X = vehicle.X;
-						right.Y = vehicle.Y;
-					}
-					if (longitudinalRange > maxfrontRange)
-					{
-						maxfrontRange = transversalRange;
-						front.X = vehicle.X;
-						front.Y = vehicle.Y;
-					}
-					if (longitudinalRange < maxrearRange)
-					{
-						maxrearRange = transversalRange;
-						rear.X = vehicle.X;
-						rear.Y = vehicle.Y;
-					}
+					speedVector.X = MovingVehicles.Average(v => v.Value.X) / Vehicles.Count;
+					speedVector.Y = MovingVehicles.Average(v => v.Value.Y) / Vehicles.Count;
 				}
-				return route = new Route(Target.center, new Coordinate { X = sumAnticipationX, Y = sumAnticipationY }, front, rear, left, right);
+				return route = CreateRoute(speedVector.X, speedVector.Y);
 			}
 			set
 			{
@@ -454,6 +439,55 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 			}
 		}
 
+		public Route CreateRoute(double speedVectorX, double speedVectorY)
+		{
+			if (Target == null) return null;
+			var front = new Coordinate();
+			var rear = new Coordinate();
+			var left = new Coordinate();
+			var right = new Coordinate();
+			var maxfrontRange = 0d;
+			var maxrearRange = 0d;
+			var maxleftRange = 0d;
+			var maxrightRange = 0d;
+			var sumAnticipationX = speedVectorX  * anticipationTicksInterval;
+			var sumAnticipationY = speedVectorY * anticipationTicksInterval;
+			foreach (var item in Vehicles)
+			{
+				var vehicle = item.Value;
+				var angleFromMovingDirection = Atan2(vehicle.Y - Target.center.Y, vehicle.X - Target.center.X) - Atan2(sumAnticipationY, sumAnticipationX);
+				if (angleFromMovingDirection < -PI) angleFromMovingDirection += PI * 2;
+				if (angleFromMovingDirection > PI) angleFromMovingDirection -= 2 * PI;
+				var rangeFromCenter = Sqrt(Pow(Target.center.X - vehicle.X, 2) + Pow(Target.center.Y - vehicle.Y, 2));
+				var transversalRange = Sin(angleFromMovingDirection) * rangeFromCenter;
+				var longitudinalRange = Cos(angleFromMovingDirection) * rangeFromCenter;
+				if (transversalRange < maxleftRange)
+				{
+					maxleftRange = transversalRange;
+					left.X = vehicle.X;
+					left.Y = vehicle.Y;
+				}
+				if (transversalRange > maxrightRange)
+				{
+					maxrightRange = transversalRange;
+					right.X = vehicle.X;
+					right.Y = vehicle.Y;
+				}
+				if (longitudinalRange > maxfrontRange)
+				{
+					maxfrontRange = transversalRange;
+					front.X = vehicle.X;
+					front.Y = vehicle.Y;
+				}
+				if (longitudinalRange < maxrearRange)
+				{
+					maxrearRange = transversalRange;
+					rear.X = vehicle.X;
+					rear.Y = vehicle.Y;
+				}
+			}
+			return route = new Route(Target.center, new Coordinate { X = sumAnticipationX, Y = sumAnticipationY }, front, rear, left, right);
+		}
 	}
 
 	public class ArrvSquad : Squad
@@ -504,5 +538,9 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 						? 2 : vehicle.Type == VehicleType.Tank ? 3 : 4;
 		}
 
+		protected override bool FilterNeighbors(ISquad squad)
+		{
+			return squad.Id != Id && (Type == VehicleType.Helicopter && Type == VehicleType.Fighter);
+		}
 	}
 }
