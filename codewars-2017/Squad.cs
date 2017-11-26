@@ -44,6 +44,12 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 		public Dictionary<long, double> Angles => angles;
 		public Dictionary<long, Vehicle> All { get; }
 		public Dictionary<int, ISquad> Squads { get; }
+		public int VisionRange => visionRange > 0 
+			? visionRange 
+			: (visionRange = Type == VehicleType.Fighter ? 120 : Type == VehicleType.Helicopter ? 100 : Type == VehicleType.Arrv ? 60 : 80);
+		public int AttackRange => visionRange > 0
+			? visionRange
+			: (visionRange = Type == VehicleType.Fighter ? 120 : Type == VehicleType.Helicopter ? 100 : Type == VehicleType.Arrv ? 60 : 80);
 
 		private Route route;
 		private readonly Dictionary<long, Coordinate> movingVehicles = new Dictionary<long, Coordinate>();
@@ -57,9 +63,10 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 		protected double rangeToTarget;
 		protected double lastRangeToTarget;
 		protected Coordinate lastTargetCoordinate;
-		private const int rangePortionOrdering = 20;
-		private const int anticipationTicksInterval = 60;
-
+		protected const int rangePortionOrdering = 20;
+		protected const int anticipationTicksInterval = 60;
+		private int visionRange;
+		private int atackRange;
 
 		public Squad(int id, Dictionary<long, Vehicle> all, Dictionary<int, ISquad> squads, VehicleType? type = null)
 		{
@@ -107,30 +114,35 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 		public GroupTask GetTaskByStrategy(ArmyInfo opponent, StrategyType strategy)
 		{
 			if (Target == null) return null;
-			GroupTask task = null;
+			Coordinate coordinate = null;
 			if (strategy == StrategyType.Brave)
 			{
-				task = GetBraveMoveTask(opponent);
+				coordinate = GetBraveMoveTarget(opponent);
 			}
 			else if (strategy == StrategyType.Back)
 			{
-				task = GetBackMoveTask(opponent);
+				coordinate = GetBackMoveTarget(opponent);
 			}
 			else
 			{
-				task = GetCarefullMoveTask(opponent);
+				coordinate = GetCarefullMoveTarget(opponent);
 			}
+			if(coordinate == null)
+			{
+				return null;
+			}
+			var task = CreateMoveTask(coordinate);
 			return task;
 		}
 
 		public virtual bool FilterSquad(ISquad squad)
 		{
-			return true;
+			return squad.Type == VehicleType.Tank || squad.Type == VehicleType.Arrv || squad.Type == VehicleType.Ifv;
 		}
 
 		public virtual bool FilterVehicle(Vehicle vehicle)
 		{
-			return true;
+			return vehicle.Type == VehicleType.Tank || vehicle.Type == VehicleType.Arrv || vehicle.Type == VehicleType.Ifv;
 		}
 
 		public virtual bool FilterTactical(Vehicle vehicle)
@@ -154,110 +166,120 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 						? 2 : vehicle.Type == VehicleType.Fighter ? 3 : 4;
 		}
 
-		public virtual GroupTask GetBraveMoveTask(ArmyInfo opponent)
+		public virtual Coordinate GetBraveMoveTarget(ArmyInfo opponent)
 		{
-			var target = opponent.Squads.Select(s => s.Value).Where(FilterSquad).Select(s => s.Target).Where(t => t != null)
+			var target = opponent.Squads.Values.Where(FilterSquad).Select(s => s.Target).Where(t => t != null)
 					.OrderBy(t => (int)(Pow(t.center.X - Target.center.X, 2) + Pow(t.center.Y - Target.center.Y, 2)) / rangePortionOrdering)
 					.ThenBy(OrderByTargetType)
 					.FirstOrDefault();
 			if (target != null && target.variance > 2 * initVariance)
 			{
-				return CreateMoveTask(target.center.X - Target.center.X, target.center.Y - Target.center.Y);
+				return new Coordinate(target.center.X - Target.center.X, target.center.Y - Target.center.Y);
 			}
 			var nearestVehicle = opponent.All.Values.Where(FilterVehicle)
 				.OrderBy(v => (int)v.GetDistanceTo(Target.center.X, Target.center.Y) / rangePortionOrdering).ThenBy(OrderByVehicleType).FirstOrDefault();
 			if (nearestVehicle != null)
 			{
-				return CreateMoveTask(nearestVehicle.X - Target.center.X, nearestVehicle.Y - Target.center.Y);
+				return new Coordinate(nearestVehicle.X - Target.center.X, nearestVehicle.Y - Target.center.Y);
 			}
 			var tacticalTarget = opponent.All.Values.Where(FilterTactical)
 				.OrderBy(v => (int)v.GetDistanceTo(Target.center.X, Target.center.Y) / rangePortionOrdering).ThenBy(OrderByVehicleType).FirstOrDefault();
 			if (tacticalTarget != null)
 			{
 				var apoint = FindAttackingPoint(tacticalTarget.X, tacticalTarget.Y, Target.center.X, Target.center.Y,
-					type == VehicleType.Fighter ? 120 : type == VehicleType.Helicopter ? 100 : type == VehicleType.Arrv ? 60 : 80);
-				return CreateMoveTask(apoint.X, apoint.Y);
+					VisionRange);
+				return new Coordinate(apoint.X, apoint.Y);
 			}
 			return null;
 		}
 
-		public virtual GroupTask GetCarefullMoveTask(ArmyInfo opponent)
+		public virtual Coordinate GetCarefullMoveTarget(ArmyInfo opponent)
 		{
-			var target = opponent.Squads.Select(s => s.Value).Where(FilterSquad).Select(s => s.Target).Where(t => t != null)
+			var target = opponent.Squads.Values.Where(FilterSquad).Select(s => s.Target).Where(t => t != null)
 					.OrderBy(t => (int)(Pow(t.center.X - Target.center.X, 2) + Pow(t.center.Y - Target.center.Y, 2)) / rangePortionOrdering)
 					.ThenBy(OrderByTargetType)
 					.FirstOrDefault();
 			Coordinate apoint;
 			if (target != null && target.variance > 2 * initVariance)
 			{
-				apoint = FindAttackingPoint(target.center.X, target.center.Y, Target.center.X, Target.center.Y, 20);
-				return CreateMoveTask(apoint.X, apoint.Y);
+				return FindAttackingPoint(target.center.X, target.center.Y, Target.center.X, Target.center.Y, AttackRange);
 			}
 			var nearest = opponent.All.Values.Where(FilterVehicle)
 				.OrderBy(v => (int)v.GetDistanceTo(Target.center.X, Target.center.Y) / rangePortionOrdering).ThenBy(OrderByVehicleType).FirstOrDefault();
 			if (nearest != null)
 			{
-				apoint = FindAttackingPoint(nearest.X, nearest.Y, Target.center.X, Target.center.Y, 20);
-				return CreateMoveTask(apoint.X, apoint.Y);
+				return FindAttackingPoint(nearest.X, nearest.Y, Target.center.X, Target.center.Y, AttackRange);
 			}
 			var tacticalTarget = opponent.All.Values.Where(FilterTactical)
 				.OrderBy(v => (int)v.GetDistanceTo(Target.center.X, Target.center.Y) / rangePortionOrdering).ThenBy(OrderByVehicleType).FirstOrDefault();
 			if (tacticalTarget != null)
 			{
-				apoint = FindAttackingPoint(tacticalTarget.X, tacticalTarget.Y, Target.center.X, Target.center.Y,
-				type == VehicleType.Fighter ? 120 : type == VehicleType.Helicopter ? 100 : type == VehicleType.Arrv ? 60 : 80);
-				return CreateMoveTask(apoint.X, apoint.Y);
+				return FindAttackingPoint(tacticalTarget.X, tacticalTarget.Y, Target.center.X, Target.center.Y,
+				VisionRange);
 			}
 			return null;
 		}
 
-		public virtual GroupTask GetBackMoveTask(ArmyInfo opponent)
+		public virtual Coordinate GetBackMoveTarget(ArmyInfo opponent)
 		{
-			var target = opponent.Squads.Select(s => s.Value).Where(FilterSquad).Select(s => s.Target).Where(t => t != null)
+			var target = opponent.Squads.Values.Where(FilterSquad).Select(s => s.Target).Where(t => t != null)
 					.OrderBy(t => (int)(Pow(t.center.X - Target.center.X, 2) + Pow(t.center.Y - Target.center.Y, 2)) / rangePortionOrdering)
 					.ThenBy(OrderByTargetType)
 					.FirstOrDefault();
 			Coordinate apoint;
 			if (target != null && target.variance > 2 * initVariance)
 			{
-				apoint = FindAttackingPoint(target.center.X, target.center.Y, Target.center.X, Target.center.Y,
-					type == VehicleType.Fighter ? 120 : type == VehicleType.Helicopter ? 100 : type == VehicleType.Arrv ? 60 : 80);
-				return CreateMoveTask(apoint.X, apoint.Y);
+				return FindAttackingPoint(target.center.X, target.center.Y, Target.center.X, Target.center.Y,
+					VisionRange);
 			}
 			var nearest = opponent.All.Values.Where(FilterVehicle)
 				.OrderBy(v => (int)v.GetDistanceTo(Target.center.X, Target.center.Y) / rangePortionOrdering).ThenBy(OrderByVehicleType).FirstOrDefault();
 			if (nearest != null)
 			{
-				apoint = FindAttackingPoint(nearest.X, nearest.Y, Target.center.X, Target.center.Y,
-					type == VehicleType.Fighter ? 120 : type == VehicleType.Helicopter ? 100 : type == VehicleType.Arrv ? 60 : 80);
-				return CreateMoveTask(apoint.X, apoint.Y);
+				return FindAttackingPoint(nearest.X, nearest.Y, Target.center.X, Target.center.Y,
+					VisionRange);
 			}
 			var tacticalTarget = opponent.All.Values.Where(FilterTactical)
 				.OrderBy(v => (int)v.GetDistanceTo(Target.center.X, Target.center.Y) / rangePortionOrdering).ThenBy(OrderByVehicleType).FirstOrDefault();
 			if (tacticalTarget != null)
 			{
-				apoint = FindAttackingPoint(tacticalTarget.X, tacticalTarget.Y, Target.center.X, Target.center.Y,
-					type == VehicleType.Fighter ? 120 : type == VehicleType.Helicopter ? 100 : type == VehicleType.Arrv ? 60 : 80);
-				return CreateMoveTask(apoint.X, apoint.Y);
+				return FindAttackingPoint(tacticalTarget.X, tacticalTarget.Y, Target.center.X, Target.center.Y,
+					VisionRange);
 			}
 			return null;
 		}
 
-		private Coordinate FindAttackingPoint(double targetX, double targetY, double selfX, double selfY, double range)
+		protected Coordinate FindAttackingPoint(double targetX, double targetY, double selfX, double selfY, double range)
 		{
 			var angle = Atan((targetY - selfY) / (targetX - selfX));
 			return new Coordinate { X = targetX - selfX - 0.8 * range * Cos(angle), Y = targetY - selfY - 0.8 * range * Sin(angle) };
 		}
 
-		private GroupTask CreateMoveTask(double x, double y, Func<ArmyInfo, StrategyType, GroupTask> next = null, int? priority = null, int? order = null, int duration = 0)
+		private GroupTask CreateMoveTask(Coordinate coordinate, Func<ArmyInfo, StrategyType, GroupTask> next = null, int? priority = null, int? order = null, int duration = 0)
 		{
 			double maxSpeed = GetMaxSpeed();
-			var targetpoint = CorrectPoint(x, y, ref maxSpeed);
+			if(Target.center.X + coordinate.X < 0)
+			{
+				coordinate.X = Abs(coordinate.X);
+			}
+			if (Target.center.Y + coordinate.Y < 0)
+			{
+				coordinate.Y = Abs(coordinate.Y);
+			}
+			if (Target.center.X + coordinate.X > 1032)
+			{
+				coordinate.X = -Abs(coordinate.X);
+			}
+			if (Target.center.Y + coordinate.Y > 1032)
+			{
+				coordinate.Y = -Abs(coordinate.Y);
+			}
+			var targetpoint = CorrectPoint(coordinate.X, coordinate.Y, ref maxSpeed);
 			if (targetpoint == null) return null;
 			var targetMovingDelta = lastTargetCoordinate != null
-				? Sqrt(Pow(x - lastTargetCoordinate.X, 2) + Pow(y - lastTargetCoordinate.Y, 2)) : int.MaxValue;
+				? Sqrt(Pow(coordinate.X - lastTargetCoordinate.X, 2) + Pow(coordinate.Y - lastTargetCoordinate.Y, 2)) : int.MaxValue;
 			lastRangeToTarget = rangeToTarget;
-			rangeToTarget = Sqrt(Pow(x - Target.center.X, 2) + Pow(y - Target.center.Y, 2));
+			rangeToTarget = Sqrt(Pow(coordinate.X - Target.center.X, 2) + Pow(coordinate.Y - Target.center.Y, 2));
 			return new GroupTask
 			{
 				X = targetpoint.X,
@@ -276,20 +298,20 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 
 		private double GetMaxSpeed()
 		{
-			return Target.speed;
+			return Target.speed * (Type == VehicleType.Ifv || Type == VehicleType.Tank ? 0.8 : 1);
 		}
 
 		protected virtual bool FilterNeighbors(ISquad squad)
 		{
-			return squad.Id != Id && Type != VehicleType.Helicopter && Type != VehicleType.Fighter;
+			return squad.Id != Id && squad.Type != VehicleType.Helicopter && squad.Type != VehicleType.Fighter;
 		}
 
 		private Coordinate CorrectPoint(double x, double y, ref double maxSpeed)
 		{
 			Route newRoute;
-			var currentRoutes = Squads.Values.Where(FilterNeighbors).Select(s => s.Route).Where(r => r != null);
+			var currentRoutes = Squads.Values.Where(FilterNeighbors).Select(s => s.Route).Where(r => r != null).ToArray();
 			var speedVectors = Enumerable.Range(-18, 36).Select(n => 2 * PI / 36 * n).OrderBy(n => Abs(n))
-				.Select(a => new Coordinate(x * Cos(a) - y * Sin(a), x * Sin(a) + y * Cos(a)));
+				.Select(a => new Coordinate(x * Cos(a) - y * Sin(a), x * Sin(a) + y * Cos(a))).ToArray();
 			var speedCoefficients = new[] { 1, 0.9, 0.8, 0.7, 0.6 };
 			foreach(var speedVector in speedVectors)
 			{
@@ -307,7 +329,7 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 						: new Coordinate(normalizedX * anticipationTicksInterval, normalizedY * anticipationTicksInterval);
 				}
 			}
-			return null;
+			return new Coordinate(x, y);
 		}
 
 		private GroupTask CreateScaleTask(double factor, Func<ArmyInfo, StrategyType, GroupTask> next, int priority, int order, int duration = 30)
@@ -495,7 +517,48 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 		public ArrvSquad(int id, Dictionary<long, Vehicle> all, Dictionary<int, ISquad> squads, VehicleType type) : base(id, all, squads, type)
 		{ }
 
-		
+		public override Coordinate GetBraveMoveTarget(ArmyInfo opponent)
+		{
+			return GetArrvTask(opponent);
+		}
+
+		public override Coordinate GetCarefullMoveTarget(ArmyInfo opponent)
+		{
+			return GetArrvTask(opponent);
+		}
+
+		public override Coordinate GetBackMoveTarget(ArmyInfo opponent)
+		{
+			return GetArrvTask(opponent);
+		}
+
+		public override bool FilterSquad(ISquad squad)
+		{
+			return squad.Id != Id && squad.Target != null && squad.Target.totalDurability < squad.Vehicles.Count * 100 * 0.8;
+		}
+
+		private Coordinate GetArrvTask(ArmyInfo opponent)
+		{
+			var target = Squads.Values.Where(FilterSquad).Select(s => s.Target)
+					.OrderBy(t => (int)(Pow(t.center.X - Target.center.X, 2) + Pow(t.center.Y - Target.center.Y, 2)) / rangePortionOrdering)
+					.ThenBy(OrderByTargetType)
+					.FirstOrDefault();
+			if (target != null)
+			{
+				return new Coordinate(target.center.X - Target.center.X, target.center.Y - Target.center.Y);
+			}
+
+			if (Squads.Any(s => s.Value.Id != Id)) return null;
+			var tacticalTarget = opponent.All.Values.Where(FilterTactical)
+				.OrderBy(v => (int)v.GetDistanceTo(Target.center.X, Target.center.Y) / rangePortionOrdering).ThenBy(OrderByVehicleType).FirstOrDefault();
+			if (tacticalTarget != null)
+			{
+				var apoint = FindAttackingPoint(tacticalTarget.X, tacticalTarget.Y, Target.center.X, Target.center.Y,
+					VisionRange);
+				return new Coordinate(apoint.X, apoint.Y);
+			}
+			return null;
+		}
 	}
 
 	public class AirSquad : Squad
@@ -540,7 +603,7 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 
 		protected override bool FilterNeighbors(ISquad squad)
 		{
-			return squad.Id != Id && (Type == VehicleType.Helicopter && Type == VehicleType.Fighter);
+			return squad.Id != Id && (squad.Type == VehicleType.Helicopter || squad.Type == VehicleType.Fighter);
 		}
 	}
 }

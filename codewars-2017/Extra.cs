@@ -1,5 +1,6 @@
 ﻿using Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk.Model;
 using System;
+using System.Linq;
 using static Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk.Geometry;
 
 namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
@@ -120,27 +121,40 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 			this.right = right + speedVector;
 		}
 
+		public RouteRib[] Ribs
+		{
+			get
+			{
+				if (ribs != null) return ribs;
+				ribs = new[] { new RouteRib(leftStart, left), new RouteRib(rightStart, right), new RouteRib(frontStart, front),
+				new RouteRib(rearStart, rear), new RouteRib(leftStart, rearStart), new RouteRib(rearStart, rightStart),
+				new RouteRib(left, front), new RouteRib(front, right)};
+				return ribs;
+			}
+		}
+		private RouteRib[] ribs;
+
 		public bool IsCrossingWith(Route other)
 		{
-			return IsCrossing(leftStart, left, other.leftStart, other.left)
-				|| IsCrossing(leftStart, left, other.rightStart, other.right)
-				|| IsCrossing(leftStart, left, other.frontStart, other.front)
-				|| IsCrossing(leftStart, left, other.rearStart, other.rear)
+			foreach(var rib in Ribs)
+			{
+				if(other.Ribs.Any(r => IsCrossing(rib.start, rib.finish, r.start, r.finish)))
+				{
+					return true;
+				}
+			}
+			return false;
+		}
+	}
 
-				|| IsCrossing(rightStart, right, other.leftStart, other.left)
-				|| IsCrossing(rightStart, right, other.rightStart, other.right)
-				|| IsCrossing(rightStart, right, other.frontStart, other.front)
-				|| IsCrossing(rightStart, right, other.rearStart, other.rear)
-
-				|| IsCrossing(frontStart, front, other.leftStart, other.left)
-				|| IsCrossing(frontStart, front, other.rightStart, other.right)
-				|| IsCrossing(frontStart, front, other.frontStart, other.front)
-				|| IsCrossing(frontStart, front, other.rearStart, other.rear)
-
-				|| IsCrossing(rearStart, rear, other.leftStart, other.left)
-				|| IsCrossing(rearStart, rear, other.rightStart, other.right)
-				|| IsCrossing(rearStart, rear, other.frontStart, other.front)
-				|| IsCrossing(rearStart, rear, other.rearStart, other.rear);
+	public class RouteRib
+	{
+		public Coordinate start;
+		public Coordinate finish;
+		public RouteRib( Coordinate start, Coordinate finish)
+		{
+			this.start = start;
+			this.finish = finish;
 		}
 	}
 }

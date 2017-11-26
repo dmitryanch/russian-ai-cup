@@ -268,16 +268,18 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 		{
 			Analyze(opponent);
 			GroupTask task = null;
-			if (lastTask != null && (lastTask.tick + lastTask.duration > tick && lastTask.action != ActionType.Scale ||
-				lastTask.tick + lastTask.duration > tick && lastTask.factor > 0 && lastTask.factor < 1 
-				&& !Squads[lastTask.group].IsCollapsed))
+			ISquad squad = null;
+			if (lastTask != null && Squads.TryGetValue(lastTask.group, out squad) && squad.Target != null 
+				&& (lastTask.tick + lastTask.duration > tick && lastTask.action != ActionType.Scale 
+				|| lastTask.tick + lastTask.duration > tick && lastTask.factor > 0 && lastTask.factor < 1 
+				&& !squad.IsCollapsed))
 			{
 				return new GroupTask
 				{
 					action = ActionType.None
 				};
 			}
-			if (lastTask != null && lastTask.next != null)
+			if (lastTask != null && lastTask.next != null && squad != null && squad.Target != null)
 			{
 				
 				task = lastTask.next(opponent, strategy);
