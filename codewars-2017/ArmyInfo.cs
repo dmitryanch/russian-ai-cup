@@ -19,7 +19,7 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 		private bool isCrushed;
 		private bool canTacticalNuclearAttack;
 		private const int lossScoreFactor = 2;
-		
+
 		#region Custom Collections
 		public readonly Dictionary<long, Vehicle> All = new Dictionary<long, Vehicle>(500);
 		public readonly Queue<GroupProperties> NotInitializedGroups = new Queue<GroupProperties>();
@@ -33,7 +33,7 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 			};
 		public Dictionary<int, ISquad> Squads = new Dictionary<int, ISquad>();
 		public Dictionary<int, int> ExecutedTasks = new Dictionary<int, int>();
-		
+
 		#endregion
 
 		public void Init(World world)
@@ -84,7 +84,7 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 						bottom = bounds.maxY + 3,
 						id = NotInitializedGroups.Count + 1,
 						type = item.Key,
-						scaleLocation = new Coordinate { X = (bounds.maxX + bounds.minX)/2, Y = (bounds.maxY + bounds.minY)/2 }
+						scaleLocation = new Coordinate { X = (bounds.maxX + bounds.minX) / 2, Y = (bounds.maxY + bounds.minY) / 2 }
 					});
 					continue;
 				}
@@ -147,7 +147,7 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 				}
 				: null;
 			canTacticalNuclearAttack = player.RemainingNuclearStrikeCooldownTicks == 0;
-			
+
 			foreach (var newVehicle in world.NewVehicles)
 			{
 				if (newVehicle.PlayerId == playerId)
@@ -223,7 +223,7 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 					{
 						Squads[squadId].RemoveVehicle(id);
 					}
-					
+
 				}
 			}
 			AfterUpdate(needDequeueNotInitializedGroupId);
@@ -269,9 +269,9 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 			Analyze(opponent);
 			GroupTask task = null;
 			ISquad squad = null;
-			if (lastTask != null && Squads.TryGetValue(lastTask.group, out squad) && squad.Target != null 
-				&& (lastTask.tick + lastTask.duration > tick && lastTask.action != ActionType.Scale 
-				|| lastTask.tick + lastTask.duration > tick && lastTask.factor > 0 && lastTask.factor < 1 
+			if (lastTask != null && Squads.TryGetValue(lastTask.group, out squad) && squad.Target != null
+				&& (lastTask.tick + lastTask.duration > tick && lastTask.action != ActionType.Scale
+				|| lastTask.tick + lastTask.duration > tick && lastTask.factor > 0 && lastTask.factor < 1
 				&& !squad.IsCollapsed))
 			{
 				return new GroupTask
@@ -281,8 +281,10 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 			}
 			if (lastTask != null && lastTask.next != null && squad != null && squad.Target != null)
 			{
-				
 				task = lastTask.next(opponent, strategy);
+			}
+			if (task != null)
+			{
 				return task;
 			}
 			task = GetInitializationTask();
@@ -291,7 +293,7 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 				return task;
 			}
 			task = FormTacticalDefenseTask(opponent);
-			if(task != null)
+			if (task != null)
 			{
 				return task;
 			}
@@ -305,7 +307,7 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 					.OrderBy(t => t.priority).ThenBy(t => t.order)
 					.ThenBy(t => Squads[t.group].LastTask != null ? Squads[t.group].LastTask.tick : int.MinValue)
 					.ThenByDescending(t => (int)t.action).FirstOrDefault();
-			
+
 			return task;
 		}
 
@@ -357,18 +359,19 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 			if (opponent.Squads.Any())
 			{
 				var target = opponent.Squads.Select(s => s.Value.Target).Where(t => t != null)
-					.Where(t => All.Any(v => 
+					.Where(t => All.Any(v =>
 					{
 						var range = v.Value.GetDistanceTo(t.center.X, t.center.Y);
-						return range < 0.95 * v.Value.VisionRange && range > 0.7 * v.Value.VisionRange;
+						return range < 0.9 * v.Value.VisionRange && range > 0.7 * v.Value.VisionRange;
 					})).OrderByDescending(t => (int)(t.groundDamage / 10))
 					.ThenBy(t => All.Where(a => a.Value.GetDistanceTo(t.center.X, t.center.Y) < 50)
 						.Sum(a => 99d - 99d / 50 * a.Value.GetDistanceTo(t.center.X, t.center.Y)) / 10)
-					.ThenBy(t=> t.type == VehicleType.Tank 
-						? 0 : t.type == VehicleType.Ifv 
-						? 1 : t.type == VehicleType.Helicopter 
+					.ThenBy(t => t.type == VehicleType.Tank
+						? 0 : t.type == VehicleType.Ifv
+						? 1 : t.type == VehicleType.Helicopter
 						? 2 : t.type == VehicleType.Fighter ? 3 : 4).FirstOrDefault();
-				if (target != null) {
+				if (target != null)
+				{
 					task = new GroupTask
 					{
 						action = ActionType.TacticalNuclearStrike,
@@ -376,26 +379,22 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 						priority = 0,
 						X = target.center.X,
 						Y = target.center.Y,
-						vehicleId = All.First(v => 
-						{
-							var range = v.Value.GetDistanceTo(target.center.X, target.center.Y);
-							return range < 0.95 * v.Value.VisionRange && range > 0.7 * v.Value.VisionRange;
-						}).Value.Id,
+						vehicleId = GetVehicleForNuclearAttack(target.center.X, target.center.Y).Id,
 						duration = 30
 					};
 				}
 			}
-			var nearestVehicle = opponent.All.Where(v => All.Any(s => 
+			var nearestVehicle = opponent.All.Where(v => All.Any(s =>
 				{
 					var range = s.Value.GetDistanceTo(v.Value.X, v.Value.Y);
-					return range < 0.95 * s.Value.VisionRange && range > 0.7 * s.Value.VisionRange;
-				})).OrderByDescending(v => opponent.All.Where(a => a.Value.GetDistanceTo(v.Value) < 50).Sum(a => a.Value.GroundDamage)/10)
-				.ThenBy(v => All.Where(a => a.Value.GetDistanceTo(v.Value) < 50).Sum(a => 99d - 99d/50*a.Value.GetDistanceTo(v.Value)) / 10)
+					return range < 0.9 * s.Value.VisionRange && range > 0.7 * s.Value.VisionRange;
+				})).OrderByDescending(v => opponent.All.Where(a => a.Value.GetDistanceTo(v.Value) < 50).Sum(a => a.Value.GroundDamage) / 10)
+				.ThenBy(v => All.Where(a => a.Value.GetDistanceTo(v.Value) < 50).Sum(a => 99d - 99d / 50 * a.Value.GetDistanceTo(v.Value)) / 10)
 					.ThenBy(v => v.Value.Type == VehicleType.Tank
 						? 0 : v.Value.Type == VehicleType.Ifv
 						? 1 : v.Value.Type == VehicleType.Helicopter
 						? 2 : v.Value.Type == VehicleType.Fighter ? 3 : 4).FirstOrDefault();
-			task = nearestVehicle.Value != null 
+			task = nearestVehicle.Value != null
 				? new GroupTask
 				{
 					action = ActionType.TacticalNuclearStrike,
@@ -403,11 +402,7 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 					priority = 0,
 					X = nearestVehicle.Value.X,
 					Y = nearestVehicle.Value.Y,
-					vehicleId = All.First(v => 
-					{
-						var range = v.Value.GetDistanceTo(nearestVehicle.Value.X, nearestVehicle.Value.Y);
-						return range < 0.95 * v.Value.VisionRange && range > 0.7 * v.Value.VisionRange;
-					}).Value.Id,
+					vehicleId = GetVehicleForNuclearAttack(nearestVehicle.Value.X, nearestVehicle.Value.Y).Id,
 					duration = 30
 				} : null;
 			if (task == null)
@@ -416,14 +411,14 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 			}
 			var squad = Squads.First(s => s.Value.Vehicles.ContainsKey(task.vehicleId)).Value;
 			var stopTask = new GroupTask
-				{
-					action = ActionType.Move,
-					X = 0,
-					Y = 0,
-					group = squad.Id,
-					next = ( opp, strat) => task
-				};
-			return squad.Vehicles.Any(v => !v.Value.IsSelected) 
+			{
+				action = ActionType.Move,
+				X = 0,
+				Y = 0,
+				group = squad.Id,
+				next = (opp, strat) => task
+			};
+			return squad.Vehicles.Any(v => !v.Value.IsSelected)
 				? new GroupTask
 				{
 					action = ActionType.ClearAndSelect,
@@ -432,10 +427,21 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 				} : stopTask;
 		}
 
+		private Vehicle GetVehicleForNuclearAttack(double x, double y)
+		{
+			var ownvehicles = All.Where(v =>
+			{
+				var range = v.Value.GetDistanceTo(x, y);
+				return range < 1 * v.Value.VisionRange && range > 0.6 * v.Value.VisionRange;
+			}).ToArray();
+			return ownvehicles.OrderBy(v => Abs((v.Value.GetDistanceTo(x, y) - v.Value.VisionRange * 0.8) / 10))
+					.ThenByDescending(v => ownvehicles.Count(ov => ov.Value.GetDistanceTo(v.Value) < 20)).First().Value;
+		}
+
 		private GroupTask FormTacticalDefenseTask(ArmyInfo opponent)
 		{
 			var squadsUnderNuclearAttack = Squads.Where(s => s.Value.IsUnderNuclearAttack).ToArray();
-			if(!squadsUnderNuclearAttack.Any())
+			if (!squadsUnderNuclearAttack.Any())
 			{
 				return null;
 			}
@@ -460,7 +466,7 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 				X = opponent.strike.target.X,
 				Y = opponent.strike.target.Y
 			};
-			
+
 			var task = squadsUnderNuclearAttack.Length > 1 ? new GroupTask
 			{
 				action = ActionType.ClearAndSelect,

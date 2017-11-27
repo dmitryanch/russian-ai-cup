@@ -95,20 +95,21 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 		{
 			var task = GetTaskByStrategy(opponent, strategy);
 
+			GroupTask scaleTask = null;
 			if (task != null && Target != null && Target.variance > 1.5 * initVariance)
 			{
 				//var scaletask = CreateScaleTask(0.1, (opp, strat) => GetTaskByStrategy(opp, strat), task.priority, task.order, 10);
 				//var rotatetask = CreateRotateTask(-PI / 4, (opp, strat) => scaletask, task.priority, task.order, 10);
 				//var stopTask = CreateMoveTask(0, 0, (opp, strat) => rotatetask, task.priority, task.order);
 				//task = CreateScaleTask(0.1, (opp, strat) => stopTask, task.priority, task.order, 10);
-				task = CreateScaleTask(0.1, (opp, strat) => GetTaskByStrategy(opp, strat), task.priority, task.order, 10);
+				scaleTask = CreateScaleTask(0.1, (opp, strat) => GetTaskByStrategy(opp, strat), task.priority, task.order, (int)Min(10, Max(60, Target.variance / initVariance * 10d)));
 			}
 			if (task != null && Vehicles.Any(v => !v.Value.IsSelected))
 			{
-				return CreateSelectTask((opp, strat) => GetTaskByStrategy(opponent, strategy), task.priority, task.order);
+				return CreateSelectTask((opp, strat) => scaleTask ?? GetTaskByStrategy(opponent, strategy), task.priority, task.order);
 			}
 
-			return task;
+			return scaleTask ?? task;
 		}
 
 		public GroupTask GetTaskByStrategy(ArmyInfo opponent, StrategyType strategy)
@@ -298,7 +299,7 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 
 		private double GetMaxSpeed()
 		{
-			return Target.speed * (Type == VehicleType.Ifv || Type == VehicleType.Tank ? 0.8 : 1);
+			return Target.speed;
 		}
 
 		protected virtual bool FilterNeighbors(ISquad squad)
@@ -548,7 +549,6 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 				return new Coordinate(target.center.X - Target.center.X, target.center.Y - Target.center.Y);
 			}
 
-			if (Squads.Any(s => s.Value.Id != Id)) return null;
 			var tacticalTarget = opponent.All.Values.Where(FilterTactical)
 				.OrderBy(v => (int)v.GetDistanceTo(Target.center.X, Target.center.Y) / rangePortionOrdering).ThenBy(OrderByVehicleType).FirstOrDefault();
 			if (tacticalTarget != null)
