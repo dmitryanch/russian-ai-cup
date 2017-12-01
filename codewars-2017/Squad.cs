@@ -8,7 +8,7 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 {
 	public interface ISquad
 	{
-		int Id { get;}
+		int Id { get; }
 		Dictionary<long, Vehicle> Vehicles { get; }
 		Target Target { get; set; }
 		VehicleType Type { get; }
@@ -44,8 +44,8 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 		public Dictionary<long, double> Angles => angles;
 		public Dictionary<long, Vehicle> All { get; }
 		public Dictionary<int, ISquad> Squads { get; }
-		public int VisionRange => visionRange > 0 
-			? visionRange 
+		public int VisionRange => visionRange > 0
+			? visionRange
 			: (visionRange = Type == VehicleType.Fighter ? 120 : Type == VehicleType.Helicopter ? 100 : Type == VehicleType.Arrv ? 60 : 80);
 		public int AttackRange => visionRange > 0
 			? visionRange
@@ -128,7 +128,7 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 			{
 				coordinate = GetCarefullMoveTarget(opponent);
 			}
-			if(coordinate == null)
+			if (coordinate == null)
 			{
 				return null;
 			}
@@ -253,27 +253,27 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 		protected Coordinate FindAttackingPoint(double targetX, double targetY, double selfX, double selfY, double range)
 		{
 			var angle = Atan((targetY - selfY) / (targetX - selfX));
-			return new Coordinate { X = targetX - selfX - 0.8 * range * Cos(angle), Y = targetY - selfY - 0.8 * range * Sin(angle) };
+			return new Coordinate { X = targetX - selfX + 0.8 * range * Cos(angle), Y = targetY - selfY + 0.8 * range * Sin(angle) };
 		}
 
 		private GroupTask CreateMoveTask(Coordinate coordinate, Func<ArmyInfo, StrategyType, GroupTask> next = null, int? priority = null, int? order = null, int duration = 0)
 		{
 			double maxSpeed = GetMaxSpeed();
-			if(Target.center.X + coordinate.X < 0)
+			if (Target.center.X + coordinate.X < 0)
 			{
-				coordinate.X = Abs(coordinate.X);
+				coordinate.X = Target.center.X > 30 ? 5 : 3 * Abs(coordinate.X);
 			}
 			if (Target.center.Y + coordinate.Y < 0)
 			{
-				coordinate.Y = Abs(coordinate.Y);
+				coordinate.Y = Target.center.Y > 30 ? 5 : 3 * Abs(coordinate.Y);
 			}
 			if (Target.center.X + coordinate.X > 1032)
 			{
-				coordinate.X = -Abs(coordinate.X);
+				coordinate.X = Target.center.X < 1000 ? 1027 : -3 * Abs(coordinate.X);
 			}
 			if (Target.center.Y + coordinate.Y > 1032)
 			{
-				coordinate.Y = -Abs(coordinate.Y);
+				coordinate.Y = Target.center.Y < 1000 ? 1027 : -3 * Abs(coordinate.Y);
 			}
 			var targetpoint = CorrectPoint(coordinate.X, coordinate.Y, ref maxSpeed);
 			if (targetpoint == null) return null;
@@ -314,7 +314,7 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 			var speedVectors = Enumerable.Range(-18, 36).Select(n => 2 * PI / 36 * n).OrderBy(n => Abs(n))
 				.Select(a => new Coordinate(x * Cos(a) - y * Sin(a), x * Sin(a) + y * Cos(a))).ToArray();
 			var speedCoefficients = new[] { 1, 0.9, 0.8, 0.7, 0.6 };
-			foreach(var speedVector in speedVectors)
+			foreach (var speedVector in speedVectors)
 			{
 				var normalizedX = speedVector.X / (Sqrt(Pow(speedVector.X, 2) + Pow(speedVector.Y, 2))) * maxSpeed;
 				var normalizedY = speedVector.Y / (Sqrt(Pow(speedVector.X, 2) + Pow(speedVector.Y, 2))) * maxSpeed;
@@ -403,42 +403,15 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 				{
 					return null;
 				}
-				var center = new Coordinate { X = Vehicles.Average(v => v.Value.X), Y = Vehicles.Average(v => v.Value.Y) };
-				var airDamage = 0d;
-				var groundDamage = 0d;
-				var nucleardamage = 0d;
-				var sumspeed = 0d;
-				var totalDurability = 0;
-				var variance = 0d;
-				foreach (var item in Vehicles)
-				{
-					var vehicle = item.Value;
-					airDamage += vehicle.AerialDamage;
-					groundDamage += vehicle.GroundDamage;
-					nucleardamage += (1 - (vehicle.GetDistanceTo(center.X, center.Y) / 50)) * 99d;
-					sumspeed += vehicle.MaxSpeed;
-					totalDurability += vehicle.Durability;
-					variance += Pow(vehicle.GetDistanceTo(center.X, center.Y), 2);
-
-				}
-				return target = new Target
-				{
-					airDamage = airDamage,
-					center = center,
-					groundDamage = groundDamage,
-					nuclearDamage = nucleardamage,
-					speed = sumspeed / Vehicles.Count,
-					strength = Vehicles.Count,
-					totalDurability = totalDurability,
-					variance = Sqrt(variance / Vehicles.Count),
-					type = Type
-				};
+				return target = Target.Create(Vehicles.Values.ToList(), Type);
 			}
 			set
 			{
 				target = value;
 			}
 		}
+
+		
 
 		public Route Route
 		{
@@ -473,7 +446,7 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 			var maxrearRange = 0d;
 			var maxleftRange = 0d;
 			var maxrightRange = 0d;
-			var sumAnticipationX = speedVectorX  * anticipationTicksInterval;
+			var sumAnticipationX = speedVectorX * anticipationTicksInterval;
 			var sumAnticipationY = speedVectorY * anticipationTicksInterval;
 			foreach (var item in Vehicles)
 			{

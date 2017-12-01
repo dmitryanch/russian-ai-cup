@@ -1,7 +1,9 @@
 ﻿using Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk.Model;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using static Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk.Geometry;
+using static System.Math;
 
 namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 {
@@ -78,6 +80,40 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 		public int totalDurability;
 		public double speed;
 		public VehicleType type;
+
+		public static Target Create(List<Vehicle> vehicles, VehicleType? type = null)
+		{
+			var center = new Coordinate { X = vehicles.Average(v => v.X), Y = vehicles.Average(v => v.Y) };
+			var airDamage = 0d;
+			var groundDamage = 0d;
+			var nucleardamage = 0d;
+			var sumspeed = 0d;
+			var totalDurability = 0;
+			var variance = 0d;
+			foreach (var item in vehicles)
+			{
+				var vehicle = item;
+				airDamage += vehicle.AerialDamage;
+				groundDamage += vehicle.GroundDamage;
+				nucleardamage += (1 - (vehicle.GetDistanceTo(center.X, center.Y) / 50)) * 99d;
+				sumspeed += vehicle.MaxSpeed;
+				totalDurability += vehicle.Durability;
+				variance += Pow(vehicle.GetDistanceTo(center.X, center.Y), 2);
+
+			}
+			return new Target
+			{
+				airDamage = airDamage,
+				center = center,
+				groundDamage = groundDamage,
+				nuclearDamage = nucleardamage,
+				speed = sumspeed / vehicles.Count,
+				strength = vehicles.Count,
+				totalDurability = totalDurability,
+				variance = Sqrt(variance / vehicles.Count),
+				type = type ?? vehicles.GroupBy(v => v.Type).OrderByDescending(g => g.ToArray().Length).First().Key
+			};
+		}
 	}
 
 	public enum StrategyType

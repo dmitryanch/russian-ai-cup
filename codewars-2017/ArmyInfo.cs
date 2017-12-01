@@ -250,11 +250,12 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 
 		public void Analyze(ArmyInfo opponent)
 		{
-			strategy = (lastScore - score) > (opponent.lastScore - opponent.score) * lossScoreFactor
-				? StrategyType.Brave
-				: (lastScore - score) * lossScoreFactor < (opponent.lastScore - opponent.score)
+			strategy = (lastScore - score) * lossScoreFactor < (opponent.lastScore - opponent.score)
+				|| (All.Count < 100 && opponent.All.Count > All.Count * 1.5)
 					? StrategyType.Back
-					: StrategyType.Normal;
+					: (lastScore - score) > (opponent.lastScore - opponent.score) * lossScoreFactor
+						? StrategyType.Brave
+						: StrategyType.Normal;
 			foreach (var squad in Squads)
 			{
 				squad.Value.Target = null;
@@ -262,6 +263,44 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 				.Any(v => v.Value.GetDistanceTo(opponent.strike.target.X, opponent.strike.target.Y) < 50);
 			}
 			lastScore = score;
+
+			var opponentVehicles = opponent.All.ToArray();
+			var opponentVehiclesCoordinates = opponent.All.Select(v => new Coordinate(v.Value.X, v.Value.Y)).ToArray();
+			int optimalClusters = 5;
+			int[] clusteredIndices;
+			var minVariance = double.MaxValue;
+			for (var i = Min(5, opponentVehiclesCoordinates.Length); i > 0; i--)
+			{
+				opponent.Squads.Clear();
+				clusteredIndices = Clusterization.Cluster(opponentVehiclesCoordinates, i);
+				for (var j = 0; j < clusteredIndices.Length; j++)
+				{
+					ISquad squad;
+					if(!opponent.Squads.TryGetValue(clusteredIndices[j], out squad))
+					{
+						opponent.Squads.Add(clusteredIndices[j], squad = new Squad(clusteredIndices[j], opponent.All, opponent.Squads));
+					}
+					squad.AddOrUpdateVehicle(opponentVehicles[j].Value);
+				}
+				var sumVariance = opponent.Squads.Sum(s => s.Value.Target.variance);
+				
+				if(minVariance > sumVariance)
+				{
+					minVariance = sumVariance;
+					optimalClusters = i;
+				}
+			}
+			opponent.Squads.Clear();
+			clusteredIndices = Clusterization.Cluster(opponentVehiclesCoordinates, optimalClusters);
+			for (var j = 0; j < clusteredIndices.Length; j++)
+			{
+				ISquad squad;
+				if (!opponent.Squads.TryGetValue(clusteredIndices[j], out squad))
+				{
+					opponent.Squads.Add(clusteredIndices[j], squad = new Squad(clusteredIndices[j], opponent.All, opponent.Squads));
+				}
+				squad.AddOrUpdateVehicle(opponentVehicles[j].Value);
+			}
 		}
 
 		public GroupTask GetTask(ArmyInfo opponent)
