@@ -98,11 +98,11 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 			GroupTask scaleTask = null;
 			if (task != null && Target != null && Target.variance > 1.5 * initVariance)
 			{
-				//var scaletask = CreateScaleTask(0.1, (opp, strat) => GetTaskByStrategy(opp, strat), task.priority, task.order, 10);
-				//var rotatetask = CreateRotateTask(-PI / 4, (opp, strat) => scaletask, task.priority, task.order, 10);
-				//var stopTask = CreateMoveTask(0, 0, (opp, strat) => rotatetask, task.priority, task.order);
-				//task = CreateScaleTask(0.1, (opp, strat) => stopTask, task.priority, task.order, 10);
-				scaleTask = CreateScaleTask(0.1, (opp, strat) => GetTaskByStrategy(opp, strat), task.priority, task.order, (int)Min(10, Max(60, Target.variance / initVariance * 10d)));
+				var scaletask2 = CreateScaleTask(0.1, (opp, strat) => GetTaskByStrategy(opp, strat), task.priority, task.order, 10);
+				var rotatetask = CreateRotateTask(-PI / 4, (opp, strat) => scaletask2, task.priority, task.order, 10);
+				var scaletask1 = CreateScaleTask(0.1, (opp, strat) => rotatetask, task.priority, task.order, 10);
+				scaleTask = CreateMoveTask(new Coordinate(), (opp, strat) => scaletask1, task.priority, task.order);
+				//scaleTask = CreateScaleTask(0.1, (opp, strat) => GetTaskByStrategy(opp, strat), task.priority, task.order, (int)Min(10, Max(60, Target.variance / initVariance * 10d)));
 			}
 			if (task != null && Vehicles.Any(v => !v.Value.IsSelected))
 			{
@@ -173,7 +173,7 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 					.OrderBy(t => (int)(Pow(t.center.X - Target.center.X, 2) + Pow(t.center.Y - Target.center.Y, 2)) / rangePortionOrdering)
 					.ThenBy(OrderByTargetType)
 					.FirstOrDefault();
-			if (target != null && target.variance > 2 * initVariance)
+			if (target != null && target.variance < 2 * initVariance)
 			{
 				return new Coordinate(target.center.X - Target.center.X, target.center.Y - Target.center.Y);
 			}
@@ -201,7 +201,7 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 					.ThenBy(OrderByTargetType)
 					.FirstOrDefault();
 			Coordinate apoint;
-			if (target != null && target.variance > 2 * initVariance)
+			if (target != null && target.variance < 2 * initVariance)
 			{
 				return FindAttackingPoint(target.center.X, target.center.Y, Target.center.X, Target.center.Y, AttackRange);
 			}
@@ -228,7 +228,7 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 					.ThenBy(OrderByTargetType)
 					.FirstOrDefault();
 			Coordinate apoint;
-			if (target != null && target.variance > 2 * initVariance)
+			if (target != null && target.variance < 2 * initVariance)
 			{
 				return FindAttackingPoint(target.center.X, target.center.Y, Target.center.X, Target.center.Y,
 					VisionRange);
@@ -253,7 +253,7 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 		protected Coordinate FindAttackingPoint(double targetX, double targetY, double selfX, double selfY, double range)
 		{
 			var angle = Atan((targetY - selfY) / (targetX - selfX));
-			return new Coordinate { X = targetX - selfX + 0.8 * range * Cos(angle), Y = targetY - selfY + 0.8 * range * Sin(angle) };
+			return new Coordinate { X = targetX - selfX +Sign(angle) * 0.8 * range * Cos(angle), Y = targetY - selfY + 0.8 * range * Sin(angle) };
 		}
 
 		private GroupTask CreateMoveTask(Coordinate coordinate, Func<ArmyInfo, StrategyType, GroupTask> next = null, int? priority = null, int? order = null, int duration = 0)
@@ -288,11 +288,12 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 				action = ActionType.Move,
 				group = Id,
 				order = order ?? (rangeToTarget == 0 || targetMovingDelta / rangeToTarget > 0.2
-					? !IsAllMoved || rangeToTarget < 2 * Target.variance ? 0 : 1
-					: !IsAllMoved || rangeToTarget < 2 * Target.variance ? 1 : 2),
+					? !IsAllMoved || rangeToTarget < 4 * Target.variance ? 0 : 1
+					: !IsAllMoved || rangeToTarget < 4 * Target.variance ? 2 : 3),
 				priority = priority ?? (IsUnderAttack || !IsAllMoved ? 1 : 2),
 				vehicleType = type,
 				duration = duration > 0 ? duration : 5,
+				next = next,
 				maxSpeed = maxSpeed // todo implement maxspeed accounting
 			};
 		}

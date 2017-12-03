@@ -251,7 +251,7 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 		public void Analyze(ArmyInfo opponent)
 		{
 			strategy = (lastScore - score) * lossScoreFactor < (opponent.lastScore - opponent.score)
-				|| (All.Count < 100 && opponent.All.Count > All.Count * 1.5)
+				|| (opponent.All.Count > All.Count * 1.5)
 					? StrategyType.Back
 					: (lastScore - score) > (opponent.lastScore - opponent.score) * lossScoreFactor
 						? StrategyType.Brave
@@ -282,7 +282,7 @@ namespace Com.CodeGame.CodeWars2017.DevKit.CSharpCgdk
 					}
 					squad.AddOrUpdateVehicle(opponentVehicles[j].Value);
 				}
-				var sumVariance = opponent.Squads.Sum(s => s.Value.Target.variance);
+				var sumVariance = opponent.Squads.Sum(s => s.Value.Target.variance)/opponent.Squads.Count;
 				
 				if(minVariance > sumVariance)
 				{
